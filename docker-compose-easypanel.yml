@@ -1,8 +1,6 @@
 # Docker Compose optimizado para EasyPanel
 # Soluciona los conflictos de container_name y ports
 
-version: '3.8'
-
 volumes:
   uploads:
     driver: local
@@ -52,9 +50,7 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-    # Puerto expuesto para EasyPanel (EasyPanel maneja el mapeo externo)
-    ports:
-      - "80:80"
+    # Puerto eliminado - EasyPanel maneja el mapeo externo
     networks:
       - ospos_network
     volumes:
