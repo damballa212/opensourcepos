@@ -1,0 +1,85 @@
+# Docker Compose optimizado para EasyPanel
+# Soluciona los conflictos de container_name y ports
+
+version: '3.8'
+
+volumes:
+  uploads:
+    driver: local
+  logs:
+    driver: local
+  mysql_data:
+    driver: local
+
+networks:
+  ospos_network:
+    driver: bridge
+
+services:
+  # Servicio de base de datos MySQL/MariaDB
+  mysql:
+    image: mariadb:10.5
+    # Removido container_name para evitar conflictos en EasyPanel
+    restart: always
+    networks:
+      - ospos_network
+    volumes:
+      - mysql_data:/var/lib/mysql:rw
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-pointofsale_secure_2024}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-ospos}
+      - MYSQL_USER=${MYSQL_USER:-admin}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-admin_secure_2024}
+    # Removido expose ya que EasyPanel maneja la red internamente
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Script de inicialización SQL
+  sqlscript:
+    image: jekkos/opensourcepos:sql-master
+    command: /bin/sh -c 'exit 0'
+    depends_on:
+      - mysql
+    networks:
+      - ospos_network
+
+  # Aplicación principal OSPOS
+  ospos:
+    image: jekkos/opensourcepos:master
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+    # Puerto expuesto para EasyPanel (EasyPanel maneja el mapeo externo)
+    ports:
+      - "80:80"
+    networks:
+      - ospos_network
+    volumes:
+      - uploads:/app/writable/uploads
+      - logs:/app/writable/logs
+    environment:
+      # Configuración de entorno
+      - CI_ENVIRONMENT=production
+      - FORCE_HTTPS=false
+      - PHP_TIMEZONE=${PHP_TIMEZONE:-UTC}
+      
+      # Configuración de base de datos
+      - MYSQL_USERNAME=${MYSQL_USER:-admin}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-admin_secure_2024}
+      - MYSQL_DB_NAME=${MYSQL_DATABASE:-ospos}
+      - MYSQL_HOST_NAME=mysql
+      
+      # Configuraciones adicionales para producción
+      - PHP_MEMORY_LIMIT=256M
+      - PHP_MAX_EXECUTION_TIME=300
+      - PHP_UPLOAD_MAX_FILESIZE=10M
+      - PHP_POST_MAX_SIZE=10M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
