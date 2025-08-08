@@ -30,7 +30,7 @@ services:
       - MYSQL_PASSWORD=${MYSQL_PASSWORD:-admin_secure_2024}
     # Removido expose ya que EasyPanel maneja la red internamente
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-pointofsale_secure_2024}"]
       timeout: 20s
       retries: 10
 
